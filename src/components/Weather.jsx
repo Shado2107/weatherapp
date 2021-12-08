@@ -4,23 +4,26 @@ const Weather = props => (
 
         <div className="weather__info">
             {
-                props.city && props.country && <p className="weather__key">LOcation:
-                    <span className="weather__value">{props.city}, {props.country} </span>
+                props.city && <p className="weather__key">Location:
+                    <span className="weather__value">{props.city} </span>
                 </p>
             } 
             {
-                props.temperature && <p className="weather__key">Temperature:
-                    <span className="weather__value">{props.temperature} </span>
+                props.celsius && <p className="weather__key">Celsius:
+                    <span className="weather__value">{props.celsius} C</span>
                 </p>
             } 
             {
-                props.humidity && <p className="weather__key">Humidity:
-                    <span className="weather__value">{props.humidity} </span>
+                props.description && <p className="weather__key">Main:
+                    <span className="weather__value"> {props.description.charAt(0).toUpperCase() +
+                        props.description.slice(1)} 
+                    </span>
                 </p>
-            } 
+            }
             {
-                props.description && <p className="weather__key">Conditions:
-                    <span className="weather__value">{props.description} </span>
+                 props.temp_min  &&  props.temp_max && <p className="weather__key">Main:
+                    <span className="weather__value"> {maxminTemp(props.temp_min, props.temp_max)}
+                    </span>
                 </p>
             } 
             {
@@ -33,3 +36,14 @@ const Weather = props => (
 
 
 export default Weather;
+
+function maxminTemp(min, max) {
+    if (max && min) {
+      return (
+        <h3>
+          <span className="px-4">{min}&deg;</span>
+          <span className="px-4">{max}&deg;</span>
+        </h3>
+      );
+    }
+}
