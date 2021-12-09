@@ -5,12 +5,12 @@ const Weather = props => (
         <div className="weather__info">
             {
                 props.city && <p className="weather__key">Location:
-                    <span className="weather__value">{props.city} </span>
+                    <span className="weather__value"> {props.city} </span>
                 </p>
             } 
             {
                 props.celsius && <p className="weather__key">Celsius:
-                    <span className="weather__value">{props.celsius} C</span>
+                    <span className="weather__value"> {props.celsius}&deg;C</span>
                 </p>
             } 
             {
@@ -21,9 +21,10 @@ const Weather = props => (
                 </p>
             }
             {
-                 props.temp_min  &&  props.temp_max && <p className="weather__key">Main:
-                    <span className="weather__value"> {maxminTemp(props.temp_min, props.temp_max)}
-                    </span>
+                 props.temp_min  &&  props.temp_max && <p className="weather__key">Min & max:
+                   
+                    {maxminTemp(props.temp_min, props.temp_max)}
+                   
                 </p>
             } 
             {
@@ -40,10 +41,10 @@ export default Weather;
 function maxminTemp(min, max) {
     if (max && min) {
       return (
-        <h3>
-          <span className="px-4">{min}&deg;</span>
-          <span className="px-4">{max}&deg;</span>
-        </h3>
+        <h4>
+          <span className="weather__value px-4 "> {min}&deg;C</span>
+          <span className="weather__value px-4"> {max}&deg;C</span>
+        </h4>
       );
     }
 }

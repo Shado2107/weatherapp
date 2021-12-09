@@ -1,10 +1,9 @@
-import reactDom from "react-dom";
 import React from "react";
-import Form from "./components/Form";
-import Weather from "./components/Weather";
-import Titre from "./components/Titre";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import Navbar from "./components/Navbar";
 
 const APP_KEY = 'fd16bd4bf34d3bb88e88f88682e2bf36';
+const geolocation = navigator.geolocation;
 
 class App extends React.Component {
 
@@ -17,7 +16,18 @@ class App extends React.Component {
       temp_max: null,
       temp_min: null,
       description: "",
+      latLng: [],
       error: false
+  }
+
+  location(){
+    if(geolocation){
+      geolocation.getCurrentPosition((position) => {
+          this.setState({
+            latLng: [position.coords.latitude, position.coords.longitude]
+          })
+      })
+    }
   }
 
   calCelsius(temp) {
@@ -29,18 +39,12 @@ class App extends React.Component {
   getWeather = async (e) => {
     e.preventDefault();
     const city = e.target.elements.city.value;
-    const country = e.target.elements.country.value;
-
-    console.log(city);
-
-    const api_call = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city},${country}&appid=${APP_KEY}`);
+    const api_call = await fetch(`https://api.openweathermap.org/data/2.5/forcast/daily/weather?q=${city}&cnt=7&appid=${APP_KEY}`);
     const data = await api_call.json();
-
-    if (city && country && data.cod !== 404){
+    if (city && data.cod !== 404){
  
         this.setState({
           city: `${data.name}, ${data.sys.country}`,
-          country: data.sys.country,
           main: data.weather[0].main,
           celsius: this.calCelsius(data.main.temp),
           temp_max: this.calCelsius(data.main.temp_max),
@@ -66,14 +70,15 @@ class App extends React.Component {
   render() {
     return (
       <>
-         <div className="wrapper">
-             <div className="main">
-                 <div className="container">
-                     <div className="row">
+         <div className="app_container">
+             <div className="app-nav">
+                 {/* <div className="container"> */}
+                   <Navbar/>
+                     {/* <div className="row">
                          <div className="col-6 title-container">
                              <Titre />
                          </div>
-                         <div className="col-6 title-container">
+                         <div className="col-6 form-container">
                              <Form getWeather={this.getWeather} />
                              <Weather
                               celsius={this.state.celsius}
@@ -86,8 +91,8 @@ class App extends React.Component {
                               error={this.state.error}
                              />
                          </div>
-                     </div>
-                 </div>
+                     </div> */}
+                 {/* </div> */}
              </div>
          </div>
       </>
