@@ -1,99 +1,197 @@
 import React from "react";
-import 'bootstrap/dist/css/bootstrap.min.css';
+import axios from "axios";
 import Navbar from "./components/Navbar";
-
-const APP_KEY = 'fd16bd4bf34d3bb88e88f88682e2bf36';
-const geolocation = navigator.geolocation;
+import Today from "./components/Today";
+import ListComponent from './components/ListComponents';
+import GraphComponent from './components/GraphComponent';
 
 class App extends React.Component {
-
-  state = {
-      city: undefined,
-      country: undefined,
-      icon: undefined,
-      main: undefined,
-      celsius: undefined,
-      temp_max: null,
-      temp_min: null,
-      description: "",
+  constructor(props) {
+    super(props);
+    this.state = {
+      unit: 'C',
+      queryString: '',
       latLng: [],
-      error: false
-  }
-
-  location(){
-    if(geolocation){
-      geolocation.getCurrentPosition((position) => {
-          this.setState({
-            latLng: [position.coords.latitude, position.coords.longitude]
-          })
-      })
+      navbarData: {},
+      todayComponentData: {},
+      listComponentData: [],
+      graphComponentData: []
     }
   }
 
-  calCelsius(temp) {
-    let cell = Math.floor(temp - 273.15);
-    return cell;
-  }
-
-
-  getWeather = async (e) => {
-    e.preventDefault();
-    const city = e.target.elements.city.value;
-    const api_call = await fetch(`https://api.openweathermap.org/data/2.5/forcast/daily/weather?q=${city}&cnt=7&appid=${APP_KEY}`);
-    const data = await api_call.json();
-    if (city && data.cod !== 404){
- 
-        this.setState({
-          city: `${data.name}, ${data.sys.country}`,
-          main: data.weather[0].main,
-          celsius: this.calCelsius(data.main.temp),
-          temp_max: this.calCelsius(data.main.temp_max),
-          temp_min: this.calCelsius(data.main.temp_min),
-          description: data.weather[0].description,
-          error: ''
+  componentDidMount() {
+    const geolocation = navigator.geolocation;
+    if (geolocation) {
+        geolocation.getCurrentPosition((position) => {
+            this.setState({
+                latLng: [position.coords.latitude, position.coords.longitude]
+            }, this.notifyStateChange)
+        }, () => {
+            console.log('Permission Denied');
         });
-
     } else {
-      this.setState({
-          city: undefined,
-          country: undefined,
-          main: undefined,
-          celsius: undefined,
-          temp_max: undefined,
-          temp_min: undefined,
-          description: undefined,
-          error: 'Please enter the correct values',
-      })
+        console.log('GeoLocation not supported...Update the browser fella');
     }
   }
+
+  onUnitChange = (newUnit) => {
+    this.setState({
+        unit: newUnit
+    }, this.notifyStateChange) //this
+}
+
+onSearchSubmit = (query) => {
+    this.setState({
+        queryString: query,
+        latLng: []
+    }, this.notifyStateChange) //this
+}
+
+notifyStateChange = () => {
+  const hasLatLng = this.state.latLng.length > 0;
+  const hasCityOrZipcode = (this.state.queryString !== '');
+
+  if (hasLatLng || hasCityOrZipcode) {
+      this.fetchWeatherForecast(hasLatLng).then(forecastData => {
+          // console.log('Forecast Data:', forecastData);
+          // Extract component specific data...
+          const navbarData = this.extractDataForNavbar(forecastData);
+          const todayComponentData = this.extractDataForTodayComponent(forecastData);
+          const { listComponentData, graphComponentData } = this.extractDataForListAndGraphComponent(forecastData);
+
+          this.setState({
+              navbarData,
+              todayComponentData,
+              listComponentData,
+              graphComponentData
+          })
+
+      }).catch(error => {
+          console.log('Error:', error);
+      });
+  }
+}
+
+fetchWeatherForecast = (hasLatLng) => {
+  const APP_KEY = 'b30c77038fcedc120b252c72583b2050';
+  const BASE_URL = 'https://api.openweathermap.org/data/2.5/forecast/daily/';
+  const queryParams = (hasLatLng) ? `lat=${this.state.latLng[0]}&lon=${this.state.latLng[1]}` : `q=${this.state.queryString}`;
+  const unitType = (this.state.unit === 'C') ? 'metric' : 'imperial';
+
+  const url = `${BASE_URL}?${queryParams}&units=${unitType}&cnt=7&appid=${APP_KEY}`;
+
+  return axios.get(url).then(response => {
+      return response.data;
+  }).catch(error => {
+      console.log('Error:', error);
+  })
+}
+
+extractDataForNavbar = (forecastData) => {
+  return {
+      city: `${forecastData.city.name}, ${forecastData.city.country}`
+  };
+}
+
+extractDataForTodayComponent = (forecastData) => {
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const todayForecast = forecastData.list[0];
+
+  const time = new Date(todayForecast.dt * 1000);
+  const day = this.getDay(time);
+  const date = `${monthNames[time.getMonth()]} ${time.getDate()}, ${time.getFullYear()}`
+
+  const weatherId = todayForecast.weather[0].id;
+  const description = todayForecast.weather[0].description;
+
+  const hours = new Date().getHours();
+  const isDayTime = hours > 6 && hours < 20;
+  let mainTemperature = (isDayTime) ? todayForecast.temp.day : todayForecast.temp.night;
+  mainTemperature = Math.round(mainTemperature);
+  const minTemperature = Math.round(todayForecast.temp.min);
+  const maxTemperature = Math.round(todayForecast.temp.max);
+
+  const pressure = todayForecast.pressure;
+  const humidity = todayForecast.humidity;
+  const windSpeed = todayForecast.speed;
+
+  return {
+      day,
+      date,
+      weatherId,
+      description,
+      mainTemperature,
+      minTemperature,
+      maxTemperature,
+      pressure,
+      humidity,
+      windSpeed
+  }
+}
+
+extractDataForListAndGraphComponent = (forecastData) => {
+  const listComponentData = [];
+  const graphComponentData = [];
+
+  forecastData.list.forEach(forecast => {
+      let item = {};
+      item.day = this.getDay(forecast.dt * 1000);
+      item.weatherId = forecast.weather[0].id;
+      item.description = forecast.weather[0].description;
+      item.mainTemperature = Math.round(forecast.temp.day);
+
+      listComponentData.push(item);
+      graphComponentData.push(forecast.temp.day)
+  });
+
+  // Remove first element as that represents today's weather
+  listComponentData.shift();
+
+  return {
+      listComponentData,
+      graphComponentData
+  }
+}
+
+// Takes date object or unix timestamp in ms and returns day string
+getDay = (time) => {
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday ", "Friday", "Saturday"];
+  return dayNames[(new Date(time).getDay())];
+}
 
   render() {
+
+    const hasLatLng = this.state.latLng.length > 0;
+        const hasCityOrZipcode = (this.state.queryString !== '');
+        const shouldRenderApp = hasLatLng || hasCityOrZipcode;
+
+        const instructionLayout = <div className="app-instruction">
+            <p>Allow Location Access or type city name/zip code in search area to get started.</p>
+        </div>
+
+        const mainAppLayout = <React.Fragment>
+            <div className="app-today">
+                <Today data={this.state.todayComponentData} unit={this.state.unit} />
+            </div>
+            <div className="app-list-graph">
+                <ListComponent data={this.state.listComponentData} />
+                <GraphComponent data={this.state.graphComponentData} />
+            </div>
+        </React.Fragment>
+
     return (
       <>
          <div className="app_container">
-             <div className="app-nav">
-                 {/* <div className="container"> */}
-                   <Navbar/>
-                     {/* <div className="row">
-                         <div className="col-6 title-container">
-                             <Titre />
-                         </div>
-                         <div className="col-6 form-container">
-                             <Form getWeather={this.getWeather} />
-                             <Weather
-                              celsius={this.state.celsius}
-                              main={this.main}
-                              city={this.state.city}
-                              country={this.state.country}
-                              temp_max={this.state.temp_max}
-                              temp_min={this.state.temp_min}
-                              description={this.state.description}
-                              error={this.state.error}
-                             />
-                         </div>
-                     </div> */}
-                 {/* </div> */}
+             <div className="app-nav">   
+              <Navbar
+                  searchSubmit={this.onSearchSubmit}
+                  changeUnit={this.onUnitChange}
+                  unit={this.state.unit}
+                  data={this.state.navbarData}             
+                />     
              </div>
+             {shouldRenderApp ? mainAppLayout : instructionLayout}
          </div>
       </>
      );
